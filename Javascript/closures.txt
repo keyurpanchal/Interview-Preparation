@@ -1,0 +1,22 @@
+What is closures 
+- A closure is the combination of a function and the lexical environment within which that function was declared. 
+- Lexical environment is when outer function variable is used by inner function or scope.
+- A closure can be defined as a JavaScript feature in which the inner function has access to the outer function variable.
+	Ex: 
+		function createPerson() {
+			let name;
+ 
+			return {
+				getName() {
+					return name;
+				},
+				setName(newName) {
+					name = newName;
+				}
+			};
+		}
+ 
+		const person = createPerson();
+		console.log(person.getName()); // Should initially print: undefined
+		person.setName('Charlie');
+		console.log(person.getName()); // Should print: "Charlie"

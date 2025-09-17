@@ -1,0 +1,6 @@
+Event flow in JavaScript refers to the order in which an event is received and handled in the DOM (Document Object Model) tree 
+when a user interacts with a webpage (like clicking a button inside a div).
+
+Capturing Phase:   document → body → div → button
+Target Phase:      button (event fires here)
+Bubbling Phase:    button → div → body → document

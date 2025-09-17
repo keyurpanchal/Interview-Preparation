@@ -1,0 +1,51 @@
+A higher-order function in JavaScript is a function that either:
+
+1.Takes another function as an argument (callback), or
+2.Returns a function as its result,or does both.
+
+This is possible because in JavaScript, functions are first-class citizens — they can be assigned to variables, 
+passed around, and returned just like any other value.
+
+__________________________________________________
+ex: 
+function greet(name) {
+  return `Hello, ${name}!`;
+}
+
+function processUserInput(callback) {
+  const name = "Keyur";
+  return callback(name);  // calling the passed function
+}
+
+console.log(processUserInput(greet));  
+// Output: Hello, Keyur!
+
+Here, processUserInput is a higher-order function because it takes greet as an argument.
+__________________________________________________
+ex2: Returning a function
+
+function multiplier(factor) {
+  return function (number) {
+    return number * factor;
+  };
+}
+
+const double = multiplier(2);
+const triple = multiplier(3);
+
+console.log(double(5)); // 10
+console.log(triple(5)); // 15
+__________________________________________________
+ex3: Built-in higher-order functions
+
+const numbers = [1, 2, 3, 4, 5];
+
+const squared = numbers.map(num => num * num);
+console.log(squared); // [1, 4, 9, 16, 25]
+
+
+Why Higher-Order Functions are Useful?
+
+1. They allow code reusability and abstraction.
+2. They help implement functional programming patterns.
+3. They make code cleaner and more expressive (e.g., instead of writing loops manually, you use map, filter, etc.).

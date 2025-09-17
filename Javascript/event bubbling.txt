@@ -1,0 +1,23 @@
+Event bubbling in JavaScript is the process by which an event that is triggered on a child element bubbles up (propagates) through its parent elements in the DOM hierarchy, all the way up to the root (document).
+When an event (like click) occurs on an element, JavaScript first runs the event handler on that element.
+Then the same event "bubbles up" to its parent, and if the parent has a handler for the same event, that will run too.
+This continues until it reaches the root (document).
+
+<div id="parent" style="padding:20px; background:lightblue;">
+  Parent
+  <button id="child">Click Me</button>
+</div>
+
+<script>
+document.getElementById("parent").addEventListener("click", () => {
+  console.log("Parent clicked");
+});
+
+document.getElementById("child").addEventListener("click", () => {
+  console.log("Child clicked");
+});
+</script>
+
+
+You can prevent bubbling with:
+event.stopPropagation(); 

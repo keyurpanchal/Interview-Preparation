@@ -1,0 +1,41 @@
+In JavaScript, currying is a functional programming technique where a function that takes multiple arguments is transformed 
+into a series of functions, each taking one argument at a time.
+
+A technique of evaluating function with multiple arguments into sequence of functions with single argument
+__________________________________________________
+Normal function (multi-argument):
+function add(a, b, c) {
+  return a + b + c;
+}
+console.log(add(2, 3, 4)); // 9
+
+__________________________________________________
+
+Curried function:
+function curriedAdd(a) {
+  return function(b) {
+    return function(c) {
+      return a + b + c;
+    };
+  };
+}
+
+console.log(curriedAdd(2)(3)(4)); // 9
+
+__________________________________________________
+const curriedAdd = a => b => c => a + b + c;
+
+console.log(curriedAdd(2)(3)(4)); // 9
+
+__________________________________________________
+Practical Example:
+
+const log = prefix => message => console.log(`[${prefix}] ${message}`);
+
+const errorLog = log("ERROR");
+const infoLog = log("INFO");
+
+errorLog("File not found"); // [ERROR] File not found
+infoLog("Server started");  // [INFO] Server started
+
+ 

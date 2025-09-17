@@ -1,0 +1,28 @@
+eval in JavaScript is a built-in global function that takes a string as input and executes it as JavaScript code.
+
+eval(string)
+
+____________________________________
+console.log(eval("2 + 3"));  // 5
+
+____________________________________
+eval("var x = 10;");
+console.log(x); // 10
+
+____________________________________
+function greet(name) {
+  return `Hello, ${name}`;
+}
+
+console.log(eval("greet('Alice')")); // Hello, Alice
+
+
+✅ Safe alternative example
+
+Instead of:
+
+eval("2 + 2"); // 4
+
+Use:
+
+Function('"use strict"; return 2 + 2')(); // 4

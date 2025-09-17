@@ -1,0 +1,6 @@
+In JavaScript, functions are first-class citizens, which means they can be:
+
+Assigned to variables
+Passed as arguments to other functions
+Returned from other functions
+Stored in data structures (arrays, objects, etc.)

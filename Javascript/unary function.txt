@@ -1,0 +1,12 @@
+A unary function in JavaScript is a function that accepts exactly one argument. “Unary” literally means “one.”
+
+// Unary function example
+function square(x) {
+  return x * x;
+}
+
+console.log(square(5)); // 25
+
+const square = x => x * x;
+console.log(square(5)); // 25
+

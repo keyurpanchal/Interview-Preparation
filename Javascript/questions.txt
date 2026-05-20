@@ -1,3 +1,7 @@
+Complete befor interview
+
+https://www.udemy.com/course/learn-javascript-coding-mastery-2024-comprehensive-practice-test/?couponCode=KEEPLEARNING
+
 What is Javascript ? 
 - Javascript is a scripting language for the web. scripting language talks with other programming language.
 

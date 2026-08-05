@@ -1,5 +1,11 @@
-What is closures 
-- A closure is the combination of a function and the lexical environment within which that function was declared. 
+What is Lexical scoping
+- Inner functions have access to the variables of outer scopes. Using them is known as Lexical scoping.
+- "Lexical" means it is decided by WHERE the code is written, not by where it is called from.
+
+-----------------------------------------------------------------------------------------------------------------
+
+What is closures
+- A closure is the combination of a function and the lexical environment within which that function was declared.
 - Lexical environment is when outer function variable is used by inner function or scope.
 - A closure can be defined as a JavaScript feature in which the inner function has access to the outer function variable.
 	Ex: 

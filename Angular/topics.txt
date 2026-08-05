@@ -81,8 +81,11 @@ Rxjs
 	Most Used Operators
 Handaling Errors
 	Creating Global Error Handler
+Component Architecture: Smart vs. Dumb Components
 Migrating/Upgrading From Older Versions
 Multiple Apps in One Angular Project
+angular.json configuration
+PWA
 SEO 
 	Title/Meta from platform Browser
 	Dynamic Title via routes

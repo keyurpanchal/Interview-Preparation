@@ -1,0 +1,153 @@
+Angular Universal (SSR)
+
+	- By default Angular is a CSR (Client Side Rendering) framework. Browser downloads an almost empty index.html + JS bundles, then Angular builds the DOM.
+	- Angular Universal renders the same application on the server (Node) and sends ready-made HTML to the browser.
+	- From Angular 17 the package is @angular/ssr. Older versions used @nguniversal/express-engine.
+		Ex: ng add @angular/ssr
+			ng new my-app --ssr		// while creating new project
+
+	What it adds:
+		- server.ts				: express server that renders the app
+		- main.server.ts		: server side bootstrap
+		- app.config.server.ts	: server providers, merged with app.config.ts
+		- In app.config.ts		: provideClientHydration()
+		- In angular.json		: "server" and "prerender"/"ssr" build options
+
+	Run:
+		Ex: ng build && node dist/<project>/server/server.mjs
+			ng serve		// dev server also runs SSR when it is configured
+
+-----------------------------------------------------------------------------------------------------------------
+
+Why SSR
+
+	1. SEO
+		- Crawlers get real HTML content instead of an empty <app-root></app-root>.
+		- Works together with Title/Meta services. (see SEO.txt)
+	2. Performance / Core Web Vitals
+		- Better FCP (First Contentful Paint) and LCP because content is visible before JS is downloaded.
+	3. Social media / link previews
+		- Open Graph and Twitter meta tags are read by bots that do not execute JS.
+	4. Slow devices and slow networks show something meaningful faster.
+
+	Cost of SSR:
+		- Needs a Node server, cannot be hosted as plain static files.
+		- Server cost and server load increases.
+		- Code must be platform safe (see below).
+
+-----------------------------------------------------------------------------------------------------------------
+
+Rendering modes
+
+	CSR (Client Side Rendering)
+		- Everything rendered in browser. Default without SSR.
+
+	SSR (Server Side Rendering)
+		- HTML built on server on every request. Good for dynamic/personalised pages.
+
+	SSG / Prerender (Static Site Generation)
+		- HTML built at BUILD time and served as static files. Good for pages that do not change per user.
+		Ex: ng build --prerender
+			In angular.json > "prerender": { "routesFile": "routes.txt" }
+
+-----------------------------------------------------------------------------------------------------------------
+
+Hydration
+
+	- Hydration is the process of reusing the server rendered DOM on the client instead of destroying it and rebuilding it.
+	- Without hydration Angular throws away the server HTML and re-renders everything. That causes a screen flicker and bad LCP.
+	- Enabled with provideClientHydration() in app.config.ts.
+		Ex: export const appConfig: ApplicationConfig = {
+			  providers: [
+				provideRouter(routes),
+				provideClientHydration()
+			  ]
+			};
+
+	Benefits:
+		- No flicker / no content repaint.
+		- Better LCP and CLS scores.
+		- Existing DOM nodes and event listeners are attached to the already rendered HTML.
+
+	Incremental Hydration (Angular 19)
+		- Hydrates only the parts of the page the user actually needs, instead of the whole page at once.
+		- Built on top of @defer, so the same triggers work (on viewport, on interaction, on idle, on hover).
+		Ex: provideClientHydration(withIncrementalHydration())
+
+			@defer (hydrate on viewport) {
+			  <comment-list />
+			} @placeholder {
+			  <comment-skeleton />
+			}
+
+	Hydration mismatch errors:
+		- Happens when the DOM produced on the server is not the same as what the client expects.
+		- Common causes: direct DOM manipulation, invalid HTML nesting (<div> inside <p>, <p> inside <p>), browser extensions changing the DOM.
+		- Skip a problem block with ngSkipHydration.
+			Ex: <app-third-party-chart ngSkipHydration />
+
+-----------------------------------------------------------------------------------------------------------------
+
+Writing platform safe code
+
+	- On the server there is NO window, document, localStorage, navigator or setTimeout based UI code.
+	- Accessing them directly breaks the server build with "window is not defined".
+
+	1. Check the platform
+		Ex: private platformId = inject(PLATFORM_ID);
+			ngOnInit() {
+			  if (isPlatformBrowser(this.platformId)) {
+				localStorage.getItem('token');
+			  }
+			}
+		- isPlatformBrowser / isPlatformServer come from @angular/common.
+
+	2. Use afterNextRender / afterRender
+		- These only run in the browser, so they are the cleanest place for DOM work. (see life cycle.txt)
+		Ex: constructor() {
+			  afterNextRender(() => {
+				this.el.nativeElement.querySelector('input')?.focus();
+			  });
+			}
+
+	3. Use DOCUMENT token instead of the global document
+		Ex: private document = inject(DOCUMENT);
+
+	4. Use Renderer2 instead of direct DOM APIs. (see component.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+TransferState
+
+	- Problem: the server calls an API to render the page, then the browser calls the SAME API again after hydration. Double request.
+	- TransferState stores the server response inside the HTML and the browser reads it from there.
+	- provideClientHydration() enables HttpClient transfer cache automatically for GET/HEAD requests.
+		Ex: provideClientHydration(withHttpTransferCacheOptions({ includePostRequests: true }))
+
+	Manual usage:
+		Ex: const USER_KEY = makeStateKey<User>('user');
+
+			private state = inject(TransferState);
+
+			ngOnInit() {
+			  const cached = this.state.get(USER_KEY, null);
+			  if (cached) {
+				this.user = cached;
+			  } else {
+				this.http.get<User>('/api/user').subscribe(u => {
+				  this.user = u;
+				  this.state.set(USER_KEY, u);	// only useful on server
+				});
+			  }
+			}
+
+-----------------------------------------------------------------------------------------------------------------
+
+Interview points
+
+	- SSR renders on server per request, SSG prerenders at build time, CSR renders in browser.
+	- Hydration reuses server DOM, without it Angular re-renders and the page flickers.
+	- provideClientHydration() is the single provider that turns hydration on.
+	- window/document are not available on server, guard with isPlatformBrowser or afterNextRender.
+	- TransferState avoids calling the same API twice.
+	- Angular 19 added incremental hydration built on @defer triggers.

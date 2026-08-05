@@ -1,0 +1,176 @@
+Symbols, Iterators and Generators
+
+=================================================================================================================
+SYMBOLS
+=================================================================================================================
+
+- Symbol is a primitive type (ES6) whose value is ALWAYS UNIQUE.
+- Main purpose: add a property to an object without any risk of clashing with existing keys.
+
+	Ex: const a = Symbol('id');
+		const b = Symbol('id');
+		a === b;			// false  <- the string is only a description/label for debugging
+		a.description;		// 'id'
+
+	As an object key:
+		Ex: const id = Symbol('id');
+			const user = { name: 'Keyur', [id]: 123 };
+			user[id];		// 123
+
+	Symbols are "hidden" from normal iteration:
+		Object.keys(user)					// ['name']
+		JSON.stringify(user)				// {"name":"Keyur"}
+		for (const k in user)				// only 'name'
+		Object.getOwnPropertySymbols(user)	// [Symbol(id)]  <- this is how you find them
+
+	Global symbol registry (shared across the whole app / iframes):
+		Symbol.for('id') === Symbol.for('id');		// true
+		Symbol.keyFor(Symbol.for('id'));			// 'id'
+
+Well-known symbols (they let you hook into built-in behaviour):
+	Symbol.iterator		: makes an object usable in for...of and spread
+	Symbol.asyncIterator: makes an object usable in for await...of
+	Symbol.toPrimitive	: control how the object converts to number/string
+	Symbol.toStringTag	: control Object.prototype.toString.call(obj)
+	Symbol.hasInstance	: control instanceof
+
+	Ex: const money = {
+		  amount: 100,
+		  [Symbol.toPrimitive](hint) {
+			return hint === 'string' ? `Rs.${this.amount}` : this.amount;
+		  }
+		};
+		+money;				// 100
+		`${money}`;			// "Rs.100"
+
+=================================================================================================================
+ITERATORS
+=================================================================================================================
+
+Iterator protocol
+	- An object is an ITERATOR if it has a next() method returning { value, done }.
+
+Iterable protocol
+	- An object is ITERABLE if it has a [Symbol.iterator]() method that returns an iterator.
+	- Iterables work with: for...of, spread [...x], destructuring, Array.from, Promise.all, new Map/Set.
+
+	Built-in iterables: Array, String, Map, Set, arguments, NodeList, TypedArray.
+	NOT iterable: plain objects. That is why for...of on {} throws.
+
+	What for...of actually does:
+		Ex: const it = arr[Symbol.iterator]();
+			it.next();		// { value: 1, done: false }
+			it.next();		// { value: 2, done: false }
+			it.next();		// { value: undefined, done: true }
+
+Making your own iterable
+	Ex: const range = {
+		  from: 1, to: 5,
+		  [Symbol.iterator]() {
+			let current = this.from, last = this.to;
+			return {
+			  next() {
+				return current <= last
+				  ? { value: current++, done: false }
+				  : { value: undefined, done: true };
+			  }
+			};
+		  }
+		};
+
+		[...range];						// [1,2,3,4,5]
+		for (const n of range) { }		// 1 2 3 4 5
+
+	Same thing with a generator is much shorter (see below).
+
+=================================================================================================================
+GENERATORS
+=================================================================================================================
+
+- A generator function is written with function* and can PAUSE at each yield and resume later.
+- Calling it does NOT run the body. It returns a generator object, which is BOTH an iterator and an iterable.
+
+	Ex: function* gen() {
+		  yield 1;
+		  yield 2;
+		  return 3;
+		}
+
+		const g = gen();
+		g.next();		// { value: 1, done: false }
+		g.next();		// { value: 2, done: false }
+		g.next();		// { value: 3, done: true }   <- return value, not included in for...of
+		g.next();		// { value: undefined, done: true }
+
+		[...gen()];		// [1, 2]
+
+The range example again, as a generator:
+	Ex: const range = {
+		  from: 1, to: 5,
+		  *[Symbol.iterator]() {
+			for (let i = this.from; i <= this.to; i++) yield i;
+		  }
+		};
+
+Two-way communication - next() can SEND a value in
+	- The argument of next() becomes the RESULT of the paused yield expression.
+	Ex: function* ask() {
+		  const name = yield 'What is your name?';
+		  const age  = yield 'What is your age?';
+		  return `${name} is ${age}`;
+		}
+		const g = ask();
+		g.next();				// { value: 'What is your name?', done: false }
+		g.next('Keyur');		// { value: 'What is your age?',  done: false }
+		g.next(25);				// { value: 'Keyur is 25', done: true }
+
+	- The first next() only starts the function, its argument is thrown away.
+
+Delegation with yield*
+	Ex: function* inner() { yield 2; yield 3; }
+		function* outer() { yield 1; yield* inner(); yield 4; }
+		[...outer()];		// [1,2,3,4]
+
+Other methods
+	g.return(v)		// force finish, runs finally blocks
+	g.throw(err)	// throw an error INTO the generator at the paused yield
+
+Infinite / lazy sequences (the real strength - values are computed only when asked)
+	Ex: function* idGen() { let i = 1; while (true) yield i++; }
+		const ids = idGen();
+		ids.next().value;	// 1
+		ids.next().value;	// 2
+		// safe because nothing is precomputed. [...idGen()] would hang forever.
+
+	Ex: function* take(it, n) {
+		  let i = 0;
+		  for (const v of it) { if (i++ >= n) return; yield v; }
+		}
+		[...take(idGen(), 3)];		// [1,2,3]
+
+Async generators
+	Ex: async function* fetchPages(url) {
+		  let next = url;
+		  while (next) {
+			const res = await fetch(next);
+			const data = await res.json();
+			yield data.items;
+			next = data.nextPage;
+		  }
+		}
+		for await (const items of fetchPages('/api/list')) { console.log(items); }
+
+	- Perfect for paginated APIs and streams.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Where this is used in real life
+	- for...of, spread and destructuring all run on the iterator protocol.
+	- Redux-Saga is built entirely on generators.
+	- async/await was originally implemented using generators + promises.
+	- Paginated API readers and infinite scroll data sources.
+
+Interview one-liners
+	- Iterable has Symbol.iterator, iterator has next(). A generator is both.
+	- Generators are lazy, arrays are eager.
+	- Symbols are unique primitives used for collision-free keys and for hooking into built-in behaviour.

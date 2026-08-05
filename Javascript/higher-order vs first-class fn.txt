@@ -1,0 +1,73 @@
+Higher-order functions vs First-class functions
+
+Short answer:
+- "First-class function" describes the LANGUAGE. It means JavaScript treats functions as values.
+- "Higher-order function" describes a SPECIFIC FUNCTION. It is a function that takes or returns another function.
+
+So: first-class functions are the feature, higher-order functions are what that feature lets you write.
+You cannot have higher-order functions in a language that does not have first-class functions.
+
+-----------------------------------------------------------------------------------------------------------------
+
+	                      | First-class function                  | Higher-order function
+	----------------------|---------------------------------------|------------------------------------------
+	What is it about      | A property of the language            | A property of one particular function
+	Definition            | Functions can be used like any value  | Takes a fn as argument and/or returns a fn
+	Applies to            | ALL functions in JS                   | Only some functions
+	Example               | const greet = () => 'hi';             | arr.map(fn), setTimeout(fn, 0)
+	Can it exist alone    | Yes                                   | No, it needs first-class functions
+
+-----------------------------------------------------------------------------------------------------------------
+
+Example: first-class, but NOT higher-order
+
+	const greet = function (name) {		// assigned to a variable  -> first-class
+	  return `Hello, ${name}!`;
+	};
+
+	const list = [greet];				// stored in an array      -> first-class
+	const obj  = { greet };				// stored in an object     -> first-class
+
+	greet takes a string and returns a string. It does not touch other functions,
+	so it is NOT a higher-order function.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Example: higher-order
+
+	1. Takes a function
+		function processUserInput(callback) {
+		  const name = "Keyur";
+		  return callback(name);
+		}
+		processUserInput(greet);		// higher-order
+
+	2. Returns a function
+		function multiplier(factor) {
+		  return function (number) {
+			return number * factor;
+		  };
+		}
+		const double = multiplier(2);	// higher-order
+
+	3. Built-ins that are higher-order
+		map, filter, reduce, forEach, sort, some, every, find
+		setTimeout, setInterval, addEventListener
+		Promise.then, Promise.catch
+
+-----------------------------------------------------------------------------------------------------------------
+
+How they connect to the rest
+
+- Every higher-order function IS also a first-class function (it is still just a value).
+  Not every first-class function is higher-order.
+- Callbacks exist because functions are first-class. (see callback.txt)
+- Closures are what make "returning a function" actually useful, the returned function
+  remembers factor from the outer scope. (see closures.txt)
+- Currying is built entirely on higher-order functions returning functions. (see currying function.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+If the interviewer asks "is map a first-class function or a higher-order function?"
+	-> Both. It is higher-order because it accepts a callback, and it is first-class
+	   because in JS every function is first-class. The two labels are not exclusive.

@@ -1,47 +1,71 @@
-Core Concepts & Variables
-    Variables (var, let, const)
-    Data types (primitives vs. reference types)
-    Scope and closures and hoisting 
-    Execution Context
-        Global vs. function execution context and the creation phase
+Complete befor interview
 
-Functions & Asynchronous JS
-    Function types (declarations, expressions, arrow functions)
-    Higher-Order Functions
-    Promises and async/await
+Notes : FOCUS ON IN_DEPTH UNDERSTANDING
 
-Event Loop & Prototypes
-    Understanding the call stack, event loop, microtasks, macrotasks
-    Prototypes and inheritance
+https://www.udemy.com/course/learn-javascript-coding-mastery-2024-comprehensive-practice-test/?couponCode=KEEPLEARNING
 
-Maps and Sets
+-----------------------------------------------------------------------------------------------------------------
 
-Arrays
-    Common array methods
+Every topic now has its own file. Use this file only for open questions / doubts / things to revise.
 
-Strings
-    Common string methods
+Core concepts & variables
+	what is JS, statements vs expressions, data types		-> js basics.txt
+	var / let / const, temporal dead zone					-> ler-var-const.txt
+	hoisting												-> hoisting.txt
+	lexical scoping, closures								-> closures.txt
+	execution context										-> execution context.txt
+	this keyword											-> this.txt
+	type coercion, falsy values, == vs ===					-> type coercion.txt
+	tricky conditions										-> tricky conditions.txt
 
-Objects 
-    Object creation, manipulation, and destructuring
-    call apply and bind 
+Functions
+	function types (declaration, expression, arrow)			-> function types.txt
+	first-class functions									-> first-class functions.txt
+	higher order functions									-> higher order functions.txt
+	first-class vs higher-order								-> higher-order vs first-class fn.txt
+	callback, callback hell									-> callback.txt
+	currying												-> currying function.txt
+	unary function											-> unary function.txt
+	IIFE													-> iife.txt
+	call, apply, bind										-> call-apply-bind.txt
+	eval													-> eval.txt
 
-JavaScript in the Browser
-    Web APIs
+Async
+	promises, async/await, combinators						-> promises and async await.txt
+	call stack, event loop, micro/macro task				-> js under the hood.txt
 
-Security in JavaScript
-    Common Vulnerabilities
-        Understanding XSS, CSRF, and best practices to mitigate them.
+Data structures
+	arrays and array methods								-> arrays.txt
+	strings and string methods								-> strings.txt
+	objects, destructuring, spread							-> objects.txt
+	maps and sets, WeakMap / WeakSet						-> maps and sets.txt
+	shallow vs deep copy									-> shallow-deep copy.txt
 
-Advanced JavaScript & ES6+ Features
-    ES6+ features (spread operator, destructuring, template literals)
-    Symbols, iterators, and generators
+Prototypes & advanced
+	prototype, __proto__, prototypal inheritance				-> prototype - proto.txt
+	symbols, iterators, generators							-> symbols iterators generators.txt
+	ES6+ features											-> es6 features.txt
+	modules, ESM vs CommonJS								-> modules.txt
+	bitwise operators										-> bitwise operators.txt
 
-DOM Manipulation & Event Handling
-    Selecting/modifying DOM elements
-    Event handling (bubbling, delegation)
+Browser
+	DOM, selecting, traversing, events, delegation			-> dom.txt
+	event flow (capture/target/bubble)						-> event flow.txt
+	event bubbling											-> event bubbling.txt
 
-Performance & Debugging
-    Performance optimization (debouncing, throttling)
-    Memory management and garbage collection
-    Debugging techniques
+Performance, memory & security
+	debouncing and throttling								-> debouncing and throttling.txt
+	memory management and garbage collection				-> memory management and garbage collection.txt
+	XSS, CSRF, CORS											-> security - xss and csrf.txt
+	debugging techniques									-> debugging.txt
+
+Engine
+	compiled or interpreted, JIT							-> js compiled or interpreted.txt
+
+Practice
+	Practicals/												-> coding practice files
+
+-----------------------------------------------------------------------------------------------------------------
+
+Open questions / doubts:
+

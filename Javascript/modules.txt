@@ -1,0 +1,95 @@
+What is module
+A module is a reusable piece of code that encapsulates implementation details and exposes a public API so it can be easily loaded and used by other code.
+
+A module loader interprets and loads a module written in a certain module format at runtime. Popular examples are RequireJS and SystemJS.
+
+A module bundler replaces a module loader and generates a bundle of all code at build time. Popular examples are Browserify and Webpack.
+
+The ES6 Module system we use mostly. That export function and import it where we want to use. or import 'name' as 'other name'. or  import * as 'name' and use name.xyz;
+
+-----------------------------------------------------------------------------------------------------------------
+
+Why modules
+- Before modules everything was on window/global, so name clashes and no privacy. People used IIFE to fake it. (see iife.txt)
+- Modules give: own scope, explicit dependencies, reusability and tree shaking (dead code removal at build time).
+
+-----------------------------------------------------------------------------------------------------------------
+
+ES6 Modules (ESM) - the standard one
+
+	Named export / import
+		Ex: // math.js
+			export const pi = 3.14;
+			export function add(a, b) { return a + b; }
+
+			// main.js
+			import { pi, add } from './math.js';
+			import { add as sum } from './math.js';		// rename
+			import * as math from './math.js';			// namespace, math.add()
+
+	Default export / import
+		- Only ONE default per file, name is chosen by the importer.
+		Ex: // user.js
+			export default class User {}
+
+			// main.js
+			import User from './user.js';		// no braces
+			import AnyName from './user.js';	// works too
+
+	Mixed
+		Ex: import User, { pi } from './user.js';
+
+	Re-export (barrel file, index.js)
+		Ex: export { add } from './math.js';
+			export * from './user.js';
+
+	In the browser
+		Ex: <script type="module" src="main.js"></script>
+
+-----------------------------------------------------------------------------------------------------------------
+
+Key behaviours of ES modules
+
+1. Modules are always in strict mode. No need to write "use strict".
+2. Top level "this" is undefined in a module (in a normal script it is window).
+3. Imports are HOISTED. All imports are resolved before any module code runs.
+4. Imports are LIVE BINDINGS, not copies. If the exporting module changes the value, the importer sees the new value.
+	Ex: // counter.js
+		export let count = 0;
+		export function inc() { count++; }
+		// main.js
+		import { count, inc } from './counter.js';
+		inc(); console.log(count);	// 1
+5. Imported bindings are read-only. count = 5 in the importer throws.
+6. A module is evaluated only ONCE, no matter how many files import it (singleton). Result is cached.
+7. Modules are deferred by default, they run after the HTML is parsed.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Dynamic import
+- import() as a function returns a Promise. Used for lazy loading / code splitting.
+	Ex: button.addEventListener('click', async () => {
+		  const { Chart } = await import('./chart.js');
+		  new Chart();
+		});
+- This is exactly what Angular uses for lazy routes: loadComponent: () => import('./x').then(c => c.X)
+
+-----------------------------------------------------------------------------------------------------------------
+
+ESM vs CommonJS (interview favourite)
+
+	CommonJS (Node's older system)
+		Ex: const math = require('./math');
+			module.exports = { add };
+		- Synchronous, loaded at RUNTIME.
+		- require() can be called conditionally, inside an if.
+		- Exports are a COPY of the value at that moment.
+		- Cannot be tree shaken reliably.
+
+	ESM
+		- Asynchronous, resolved STATICALLY at parse time.
+		- import must be top level (except dynamic import()).
+		- Exports are live bindings.
+		- Tree shakeable, because the bundler knows the graph before running the code.
+
+	Others (older, good to just name): AMD (RequireJS, browser, async), UMD (works as both).

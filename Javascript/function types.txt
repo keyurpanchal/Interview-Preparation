@@ -1,0 +1,113 @@
+Function types in Javascript
+
+1. Function Declaration (function statement)
+	Ex: function add(a, b) { return a + b; }
+	- Fully hoisted WITH its body, so you can call it before it is written.
+		Ex: add(1, 2);					// works
+			function add(a, b) {...}
+	- Has its own this, arguments, prototype. Can be used with new.
+
+2. Function Expression
+	Ex: const add = function (a, b) { return a + b; };
+	- The variable is hoisted, the function is NOT. Calling it early gives a TDZ error with const/let,
+	  or "add is not a function" with var. (see hoisting.txt, ler-var-const.txt)
+	- Useful when you want to pass a function as a value.
+
+3. Named Function Expression
+	Ex: const fact = function inner(n) { return n <= 1 ? 1 : n * inner(n - 1); };
+	- The name "inner" is visible ONLY inside the function. Good for recursion and for readable stack traces.
+		console.log(typeof inner);		// ReferenceError
+
+4. Arrow Function (ES6)
+	Ex: const add = (a, b) => a + b;			// implicit return
+		const sq  = n => n * n;					// single param, no brackets needed
+		const obj = () => ({ a: 1 });			// object literal must be wrapped in ()
+		const log = () => { console.log('hi'); };	// block body needs explicit return
+	- Shorter syntax, but it is NOT just shorter syntax. See the differences table below.
+
+5. Method (function as an object property)
+	Ex: const user = {
+		  name: 'Keyur',
+		  greet() { return `Hi ${this.name}`; }		// ES6 shorthand
+		};
+	- "this" points to the object used to call it. (see this.txt)
+
+6. Constructor Function (old style class)
+	Ex: function User(name) { this.name = name; }
+		User.prototype.greet = function () { return this.name; };
+		const u = new User('Keyur');
+	- Called with new. Convention is PascalCase. Replaced by class in ES6. (see prototype - proto.txt)
+
+7. IIFE - Immediately Invoked Function Expression		(see iife.txt)
+8. Generator Function - function* with yield				(see symbols iterators generators.txt)
+9. Async Function - async function, always returns Promise	(see promises and async await.txt)
+10. Callback / Higher-order								(see callback.txt, higher order functions.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+Normal function vs Arrow function  (very common interview question)
+
+	                    | Normal function                      | Arrow function
+	--------------------|--------------------------------------|-----------------------------------------
+	this                | own this, decided at CALL time       | no own this, taken from where it is WRITTEN
+	arguments object    | yes                                  | no (use rest ...args)
+	new (constructor)   | yes                                  | no -> TypeError "not a constructor"
+	prototype property  | yes                                  | no
+	hoisting            | declaration is hoisted with body     | never (it is an expression)
+	can be generator    | yes (function*)                      | no
+	duplicate param name| allowed in non-strict                | never
+
+	The "this" difference in practice:
+		Ex: const timer = {
+			  count: 0,
+			  startBad() {
+				setInterval(function () {
+				  this.count++;			// "this" is window/undefined, NOT timer
+				}, 1000);
+			  },
+			  startGood() {
+				setInterval(() => {
+				  this.count++;			// arrow keeps timer's this
+				}, 1000);
+			  }
+			};
+
+	Where arrows are the WRONG choice:
+		- Object methods that need this:
+			const o = { n: 1, get: () => this.n };		// this is not o
+		- Prototype methods.
+		- Event handlers where you want this = the element.
+			el.addEventListener('click', function () { this.classList.toggle('x'); });	// works
+			el.addEventListener('click', () => { this.classList... });					// breaks
+
+-----------------------------------------------------------------------------------------------------------------
+
+Parameters
+
+	Default parameters
+		Ex: function greet(name = 'guest') { return `hi ${name}`; }
+		- Only applied when the argument is undefined (not for null or 0).
+
+	Rest parameters
+		Ex: function sum(...nums) { return nums.reduce((a, b) => a + b, 0); }
+		- Real array, unlike "arguments" which is array-like.
+		- Must be the last parameter.
+
+	arguments (old)
+		Ex: function f() { console.log(arguments.length); }
+		- Array-like, not a real array. No map/filter. Not available in arrow functions.
+
+	fn.length		// number of declared params BEFORE the first default/rest
+	fn.name			// function name, useful in logs
+
+-----------------------------------------------------------------------------------------------------------------
+
+Other terms you may be asked
+
+	Pure function		: same input -> same output, no side effects. Easy to test and cache.
+	Anonymous function	: function with no name, usually passed inline. setTimeout(function(){}, 0)
+	First-class function: functions are values	(see first-class functions.txt)
+	Higher-order fn		: takes/returns a function	(see higher order functions.txt)
+	Unary function		: takes exactly one argument	(see unary function.txt)
+	Curried function	: fn(a)(b)(c)	(see currying function.txt)
+	Callback			: function passed to be called later	(see callback.txt)

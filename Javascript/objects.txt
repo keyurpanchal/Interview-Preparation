@@ -1,0 +1,153 @@
+Objects
+
+- Everything that is not a primitive is an object. Arrays and functions are objects too. (see js basics.txt)
+- Objects are stored by REFERENCE, that is why copying needs care. (see shallow-deep copy.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+Ways to create an object
+
+	1. Object literal (most common)
+		Ex: const user = { name: 'Keyur', age: 25 };
+
+	2. Constructor function + new
+		Ex: function User(name) { this.name = name; }
+			const u = new User('Keyur');
+
+	3. class (ES6, sugar over prototypes)
+		Ex: class User {
+			  #secret = 'hidden';			// truly private field
+			  constructor(name) { this.name = name; }
+			  greet() { return `hi ${this.name}`; }
+			  static create(n) { return new User(n); }
+			  get upper() { return this.name.toUpperCase(); }
+			}
+
+	4. Object.create(proto)
+		Ex: const animal = { eats: true };
+			const rabbit = Object.create(animal);	// rabbit.__proto__ === animal
+			const clean  = Object.create(null);		// no prototype at all, safe dictionary
+
+	5. Factory function (no new, no this problems)
+		Ex: const createUser = (name) => ({ name, greet: () => `hi ${name}` });
+
+-----------------------------------------------------------------------------------------------------------------
+
+Properties
+
+	Access
+		obj.name					// dot
+		obj['name']					// bracket, needed for dynamic or invalid-identifier keys
+		obj?.address?.city			// optional chaining, undefined instead of throwing
+		obj.fn?.()					// call only if it exists
+		obj.count ?? 0				// nullish coalescing: falls back ONLY on null/undefined (0 and '' survive)
+
+	Shorthand and computed keys
+		Ex: const name = 'Keyur';
+			const key = 'age';
+			const o = { name, [key]: 25, [`${key}_label`]: 'Age' };
+			// { name: 'Keyur', age: 25, age_label: 'Age' }
+
+	Add / delete / check
+		o.city = 'Ahmedabad';
+		delete o.city;
+		'name' in o					// true, INCLUDES inherited properties
+		o.hasOwnProperty('name')	// own properties only
+		Object.hasOwn(o, 'name')	// modern replacement, safer
+
+-----------------------------------------------------------------------------------------------------------------
+
+Destructuring
+
+	Object
+		Ex: const { name, age } = user;
+			const { name: userName } = user;				// rename
+			const { city = 'N/A' } = user;					// default (only when undefined)
+			const { address: { city } } = user;				// nested
+			const { name, ...rest } = user;					// rest = everything else
+			const { a: { b } = {} } = obj;					// nested + default, avoids crash
+
+	Array
+		Ex: const [first, second] = arr;
+			const [a, , c] = arr;							// skip
+			const [x = 0] = arr;							// default
+			const [head, ...tail] = arr;
+			[a, b] = [b, a];								// swap
+
+	In function parameters (very common)
+		Ex: function draw({ x = 0, y = 0, size = 10 } = {}) { }
+			draw({ x: 5 });
+			draw();											// works because of the = {}
+
+	Careful: destructuring is SHALLOW. Nested objects are still shared references.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Spread and copying
+
+	const copy   = { ...user };						// shallow copy
+	const merged = { ...defaults, ...options };		// later wins
+	const patched= { ...user, age: 26 };			// immutable update
+
+	Object.assign(target, src1, src2)				// MUTATES target, also shallow
+	structuredClone(obj)							// real deep clone, built in
+	JSON.parse(JSON.stringify(obj))					// old deep clone, loses Date/Map/undefined/functions
+
+	(see shallow-deep copy.txt for the full comparison)
+
+-----------------------------------------------------------------------------------------------------------------
+
+Useful static methods
+
+	Object.keys(o)			// ['name', 'age']
+	Object.values(o)		// ['Keyur', 25]
+	Object.entries(o)		// [['name','Keyur'], ['age',25]]
+	Object.fromEntries(arr)	// entries back to an object
+
+	Ex: // filter an object by value
+		const filtered = Object.fromEntries(
+		  Object.entries(scores).filter(([, v]) => v > 50)
+		);
+
+	Object.freeze(o)		// no add, no delete, no change. SHALLOW.
+	Object.isFrozen(o)
+	Object.seal(o)			// no add/delete, but existing values CAN change
+	Object.getPrototypeOf(o) / Object.setPrototypeOf(o, p)
+	Object.defineProperty(o, 'id', { value: 1, writable: false, enumerable: false })
+
+	Note: keys/values/entries only return OWN ENUMERABLE properties, not inherited ones.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Getters and setters
+
+	Ex: const user = {
+		  first: 'Keyur', last: 'P',
+		  get full() { return `${this.first} ${this.last}`; },
+		  set full(v) { [this.first, this.last] = v.split(' '); }
+		};
+		user.full;					// "Keyur P"   - no ()
+		user.full = 'A B';
+
+-----------------------------------------------------------------------------------------------------------------
+
+Iterating
+
+	for (const key in obj) { }				// includes INHERITED enumerable keys -> guard with hasOwn
+	for (const [k, v] of Object.entries(obj)) { }		// preferred
+	Object.keys(obj).forEach(k => { });
+
+	Objects are not iterable by default, that is why for...of on a plain object throws.
+	You can make one iterable with Symbol.iterator. (see symbols iterators generators.txt)
+
+	Key order rule: integer-like keys come first in ascending order, then string keys in insertion order.
+		Ex: Object.keys({ b: 1, 2: 1, a: 1, 1: 1 });		// ['1','2','b','a']
+		If order matters, use a Map. (see maps and sets.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+Comparing objects
+
+	{} === {}								// false, different references
+	JSON.stringify(a) === JSON.stringify(b)	// works only if key order matches
+	- For real deep equality write a recursive compare or use lodash isEqual.

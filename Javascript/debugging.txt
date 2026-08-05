@@ -1,0 +1,138 @@
+Debugging Techniques
+
+=================================================================================================================
+CONSOLE - more than console.log
+=================================================================================================================
+
+	console.log / info / warn / error		// error and warn give a stack trace
+	console.table(arrayOfObjects)			// proper table, great for API responses
+	console.dir(domNode)					// shows the JS object instead of the rendered element
+	console.trace()							// "how did we get here", prints the call stack
+	console.assert(cond, 'msg')				// logs ONLY when cond is false
+	console.count('label')					// how many times this line ran
+	console.time('x') / console.timeEnd('x')	// measure duration
+	console.group('label') / console.groupEnd()	// collapsible nested logs
+
+	Tricks:
+		- Log an object shorthand with names:
+			Ex: console.log({ user, index, isValid });		// prints the variable NAMES too
+		- Objects are logged BY REFERENCE and expanded lazily, so a later mutation can appear
+		  in an earlier log. Snapshot it if that confuses you:
+			Ex: console.log(structuredClone(obj));
+		- Style a log so it stands out:
+			Ex: console.log('%c FIRED ', 'background:#c00;color:#fff');
+
+=================================================================================================================
+BREAKPOINTS (Sources panel)
+=================================================================================================================
+
+	debugger;			// statement in code, pauses when DevTools is open
+
+	Line breakpoint			: click the line number
+	Conditional breakpoint	: right click a line -> Add conditional breakpoint
+								Ex: id === 42		- only pauses for that one case in a big loop
+	Logpoint				: right click -> Add logpoint. Logs without editing/redeploying code.
+	DOM breakpoint			: right click an element in Elements -> Break on
+								- subtree modifications / attribute modifications / node removal
+								- perfect for "what code is changing this class?"
+	XHR/fetch breakpoint	: Sources > XHR breakpoints > add a URL substring
+	Event listener breakpoint: Sources > Event Listener Breakpoints > Mouse > click
+								- finds the handler when you do not know where it is registered
+	Exception breakpoint	: the pause icon -> "Pause on uncaught exceptions" / "on caught exceptions"
+
+	While paused:
+		Step over (F10)		: run this line, do not go inside
+		Step into (F11)		: go inside the function call
+		Step out (Shift+F11): finish this function and come back
+		Resume (F8)
+		Scope pane			: local / closure / global variables at this moment
+		Call Stack pane		: who called who. Click a frame to inspect its scope.
+		Watch pane			: expressions re-evaluated at every pause
+		Console while paused: you can run code IN that scope - hugely useful
+
+	Ignore list (blackboxing)
+		- Right click a framework file -> "Add script to ignore list" so stepping skips
+		  node_modules / zone.js / rxjs internals and stays in YOUR code.
+
+=================================================================================================================
+SOURCE MAPS
+=================================================================================================================
+
+	- Bundled/minified/TypeScript code is unreadable. Source maps map it back to your original files.
+	- Angular: sourceMap is true in the development configuration in angular.json.
+	- If you see one-letter variables and a single long line, your source map is missing or not loading.
+	- Never ship full source maps to production for a private codebase (or upload them to your
+	  error tracker only, e.g. Sentry, and do not serve them publicly).
+
+=================================================================================================================
+NETWORK PANEL
+=================================================================================================================
+
+	- Status, Headers, Payload, Response, Timing for every request.
+	- Filter by Fetch/XHR. Preserve log across navigations. Disable cache.
+	- Throttle to Slow 3G to reproduce timing/race bugs.
+	- "Copy as cURL" to replay a request outside the browser or share it with backend.
+	- Pending forever + no response = usually CORS or a preflight OPTIONS failure. Check the Console
+	  for the CORS message, it will not appear as a normal HTTP error.
+	- 4xx vs 5xx tells you which side to blame.
+
+=================================================================================================================
+PERFORMANCE AND MEMORY
+=================================================================================================================
+
+	Performance panel
+		- Record an interaction, look for long tasks (>50ms) and dropped frames.
+		- Flame chart shows which function is actually expensive.
+		- Look for forced reflow warnings. (see dom.txt)
+
+	Memory panel
+		- Heap snapshots and allocation timeline for leaks.
+		  (see memory management and garbage collection.txt)
+
+	Lighthouse
+		- Automated audit: performance, accessibility, best practices, SEO.
+
+=================================================================================================================
+PRACTICAL TECHNIQUES
+=================================================================================================================
+
+	1. Reproduce reliably first. A bug you cannot reproduce cannot be verified as fixed.
+	2. Read the error message and the stack trace properly - top frame is where it threw,
+	   the frame below is usually where the bad value came from.
+	3. Binary search the problem. Comment out half, or git bisect to find the commit that broke it.
+	4. Check your assumptions with data, not guesses. Log the value, do not imagine the value.
+	5. Isolate: reproduce it in a tiny standalone file. Half the time the bug becomes obvious.
+	6. Rubber duck it - explain the flow out loud line by line.
+	7. Change ONE thing at a time, and undo it if it did not help.
+	8. When it "works on my machine": check env vars, build config, cache, browser version, data.
+
+	Common error messages and what they usually mean:
+		"Cannot read properties of undefined (reading 'x')"
+			-> something in the chain is undefined. Use optional chaining ?. and find WHY it is undefined,
+			   usually async data used before it arrived.
+		"x is not a function"
+			-> wrong import (default vs named), typo, or a value that is not what you think.
+		"Cannot access 'x' before initialization"
+			-> temporal dead zone, let/const used before its line. (see ler-var-const.txt)
+		"Maximum call stack size exceeded"
+			-> infinite recursion, or a getter that calls itself.
+		"Unexpected token <"
+			-> you asked for JSON and the server returned an HTML error page. Look at the Network tab.
+		"this is undefined"
+			-> lost this binding, usually a normal function where an arrow was needed,
+			   or strict mode. (see this.txt, function types.txt)
+
+=================================================================================================================
+OTHER
+=================================================================================================================
+
+	- $0 in the console = the element currently selected in the Elements panel. $1 is the previous one.
+	- $$('.sel') = shorthand for querySelectorAll, returns a real array.
+	- copy(obj) copies a value to the clipboard.
+	- monitorEvents($0, 'click') logs every event on an element (Chrome only).
+	- getEventListeners($0) shows what is attached.
+	- Snippets (Sources > Snippets) to keep reusable debug scripts.
+	- Local Overrides to edit a production file locally and keep the change across reloads.
+	- try/catch around a suspect block with console.error(e) beats a silent failure.
+	- window.onerror / window.addEventListener('unhandledrejection') to catch what you missed,
+	  and a global ErrorHandler in Angular. (see Angular/miscellaneous.txt)

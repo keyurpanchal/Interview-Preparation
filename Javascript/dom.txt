@@ -1,0 +1,130 @@
+DOM
+	Document Object Model
+	To Manipulate the browser
+	Browser creates window. Window have : location ,  document and history main
+
+	- The browser parses HTML and builds a tree of objects. JS talks to that tree, not to the HTML text.
+	- The DOM is NOT part of JavaScript. It is a Web API given by the browser. (see js under the hood.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+Selecting elements
+
+	document.getElementById('id')			// single element, fastest
+	document.querySelector('.cls')			// first match, any CSS selector
+	document.querySelectorAll('.cls')		// STATIC NodeList, does not update
+	document.getElementsByClassName('cls')	// LIVE HTMLCollection, updates itself
+	document.getElementsByTagName('div')	// LIVE HTMLCollection
+
+	- querySelectorAll returns a NodeList. It has forEach but not map/filter.
+	  Convert first: [...document.querySelectorAll('li')].map(...)
+	- Live vs static is a common interview question: if you delete an element, the live HTMLCollection shrinks by itself, the static NodeList does not.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Traversing
+
+	Traversing downwards
+		element.querySelector
+		element.querySelectorAll
+		element.children				// elements only
+		element.childNodes				// includes text nodes and comments
+		element.firstElementChild / lastElementChild
+	Traversing upwards
+		element.parentElement
+		element.closest					// nearest ancestor matching a selector
+	Traversing sideways
+		element.nextElementSibling
+		element.previousElementSibling
+		Combine parentElement, children, and index
+
+-----------------------------------------------------------------------------------------------------------------
+
+Reading and changing content
+
+	el.textContent		// plain text, SAFE, ignores tags
+	el.innerText		// visible text only, triggers reflow, slower
+	el.innerHTML		// parses HTML  -> XSS RISK if the value comes from a user
+	el.value			// for input / select / textarea
+
+	Attributes vs properties
+		el.getAttribute('href') / setAttribute / removeAttribute / hasAttribute
+		el.id, el.className, el.href			// properties
+		el.dataset.userId						// reads data-user-id="..."
+		- Attribute = what is written in the HTML, property = current state in the DOM.
+		  Typing in an input changes the .value property but not the value attribute.
+
+	Classes and styles
+		el.classList.add('a') / remove('a') / toggle('a') / contains('a') / replace('a','b')
+		el.style.color = 'red'					// inline style only
+		getComputedStyle(el).color				// the actually applied value
+
+-----------------------------------------------------------------------------------------------------------------
+
+Creating, inserting, removing
+
+	const li = document.createElement('li');
+	li.textContent = 'item';
+
+	parent.append(li);				// end,   accepts text + multiple nodes
+	parent.prepend(li);				// start
+	parent.appendChild(li);			// older, nodes only
+	el.before(node) / el.after(node)
+	el.insertAdjacentHTML('beforeend', '<li>x</li>');
+
+	el.remove();					// modern
+	parent.removeChild(el);			// older
+	el.replaceWith(newEl);
+	const copy = el.cloneNode(true);	// true = deep clone with children
+
+	Performance: inserting in a loop causes reflow every time. Build once, insert once.
+		Ex: const frag = document.createDocumentFragment();
+			items.forEach(i => { const li = document.createElement('li'); li.textContent = i; frag.append(li); });
+			list.append(frag);		// single reflow
+
+-----------------------------------------------------------------------------------------------------------------
+
+Events
+
+	el.addEventListener('click', handler);
+	el.addEventListener('click', handler, { once: true, capture: false, passive: true });
+	el.removeEventListener('click', handler);	// needs the SAME function reference
+
+	- Inline onclick="" and el.onclick = fn allow only one handler. addEventListener allows many.
+	- Event flow: capturing -> target -> bubbling. (see event flow.txt, event bubbling.txt)
+
+	Event object
+		e.target			// element that actually fired the event
+		e.currentTarget		// element the listener is attached to
+		e.preventDefault()	// stop default browser behaviour (form submit, link navigation)
+		e.stopPropagation()	// stop bubbling further up
+
+	Event delegation
+		- Put ONE listener on the parent instead of one per child. Works for elements added later.
+		Ex: list.addEventListener('click', (e) => {
+			  const btn = e.target.closest('.delete');
+			  if (!btn) return;
+			  btn.closest('li').remove();
+			});
+
+-----------------------------------------------------------------------------------------------------------------
+
+Reflow and Repaint (performance)
+
+	- Reflow (layout)	: browser recalculates positions and sizes. Expensive.
+	- Repaint			: browser redraws pixels, no layout change. Cheaper.
+	- Reading offsetHeight, offsetTop, getBoundingClientRect(), getComputedStyle() forces a sync reflow.
+	- "Layout thrashing" = read, write, read, write in a loop. Batch all reads first, then all writes.
+	- Prefer: class toggling over many inline styles, transform/opacity for animation (they skip layout), DocumentFragment for bulk inserts.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Useful window objects
+
+	window.location		// href, pathname, search, hash, reload(), assign()
+	window.history		// pushState(), replaceState(), back(), forward()   <- how SPA routing works
+	window.navigator	// userAgent, onLine, clipboard, geolocation
+	window.localStorage / sessionStorage		// string only, use JSON.stringify / JSON.parse
+
+	DOMContentLoaded	// HTML parsed, images may still load
+	load				// everything including images loaded

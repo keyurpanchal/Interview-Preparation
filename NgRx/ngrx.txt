@@ -9,4 +9,4 @@ Store: The single source of truth for your application state (e.g., storing logg
 Actions: Objects that describe unique events or changes in the application (e.g., storing, updating, or deleting data).
 Reducers: Pure functions that take the current state and an action, then return a new state based on the action's implementation.
 Effects: Used to handle side effects, most commonly API calls or interactions with external services, keeping the components clean.
-Selectors: Pure functions used to "select," derive, or read specific slices of data from the store.
+Selectors: Pure functions used to "select," derive, or read specific slices of data from the store..

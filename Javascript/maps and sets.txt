@@ -1,0 +1,122 @@
+Maps and Sets
+
+Map
+- A collection of key -> value pairs where the KEY CAN BE ANY TYPE (object, function, NaN, not just strings).
+- Keeps INSERTION ORDER when you iterate.
+
+	Ex: const m = new Map();
+		m.set('a', 1);
+		m.set(42, 'number key');
+		const objKey = { id: 1 };
+		m.set(objKey, 'object as key');
+
+		m.get('a');			// 1
+		m.get({ id: 1 });	// undefined  <- different object reference!
+		m.has('a');			// true
+		m.delete('a');		// true
+		m.size;				// 2   (property, NOT a method)
+		m.clear();
+
+	Create from pairs / convert back:
+		Ex: const m = new Map([['a', 1], ['b', 2]]);
+			Object.fromEntries(m);		// { a: 1, b: 2 }
+			new Map(Object.entries(obj));
+
+	Iterating (all give insertion order):
+		for (const [k, v] of m) { }
+		m.forEach((value, key) => { });		// note: value FIRST, then key
+		m.keys(); m.values(); m.entries();
+		[...m.keys()]						// spread to a real array
+
+-----------------------------------------------------------------------------------------------------------------
+
+Map vs Object  (interview favourite)
+
+	                | Map                              | Object
+	----------------|----------------------------------|--------------------------------
+	Key types       | any (object, fn, NaN, number)    | string and symbol only
+	Order           | guaranteed insertion order       | mostly insertion, but integer-like keys sort first
+	Size            | m.size                           | Object.keys(o).length
+	Iteration       | directly iterable                | needs Object.keys/entries
+	Default keys    | none, truly empty                | inherits from Object.prototype
+	Performance     | better for frequent add/delete   | fine for fixed records
+	JSON            | NOT serialisable directly        | JSON.stringify works
+
+	The prototype trap that Map avoids:
+		Ex: const o = {};
+			o['toString'];			// function! inherited, not yours
+			'toString' in o;		// true
+			// Map has no such problem, or use Object.create(null)
+
+	Number keys become strings in an object:
+		Ex: const o = {}; o[1] = 'a'; Object.keys(o);	// ['1'] string
+			const m = new Map(); m.set(1, 'a'); [...m.keys()];	// [1] number
+
+	Use Map when: keys are not strings, keys are added/removed often, you need order + size, or keys come from user input.
+	Use Object when: it is a fixed record/config, or you need JSON.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Set
+- A collection of UNIQUE values. Duplicates are ignored silently.
+
+	Ex: const s = new Set([1, 2, 2, 3]);
+		s.add(4);
+		s.has(2);		// true
+		s.delete(2);
+		s.size;			// property
+		s.clear();
+
+	Most common real use - remove duplicates from an array:
+		Ex: const unique = [...new Set([1, 1, 2, 3, 3])];		// [1, 2, 3]
+
+	Equality is SameValueZero:
+		- Uses === EXCEPT that NaN equals NaN.
+		Ex: new Set([NaN, NaN]).size;		// 1
+			new Set([{}, {}]).size;			// 2  <- different references
+
+	Set operations (write them by hand, they are common questions):
+		const union		 = new Set([...a, ...b]);
+		const intersect	 = new Set([...a].filter(x => b.has(x)));
+		const difference = new Set([...a].filter(x => !b.has(x)));
+
+	Set vs Array:
+		- has() is O(1), Array.includes() is O(n). For big lookup lists Set is much faster.
+		- Set has no index, no order-based access, no map/filter (spread it first).
+
+-----------------------------------------------------------------------------------------------------------------
+
+WeakMap and WeakSet
+
+- Keys MUST be objects (not primitives).
+- The reference is WEAK: if nothing else points to the key object, it can be garbage collected
+  even though it is still in the WeakMap. (see memory management and garbage collection.txt)
+- Because entries can disappear at any time they are:
+	- NOT iterable (no keys(), values(), forEach)
+	- have no .size
+	- cannot be cleared
+
+	Ex: const wm = new WeakMap();
+		let el = document.getElementById('box');
+		wm.set(el, { clicks: 0 });
+		el = null;					// element can now be GC'd, WeakMap entry goes with it
+
+	Use cases:
+		1. Attaching metadata to DOM nodes without leaking when the node is removed.
+		2. Private data for a class instance:
+			Ex: const priv = new WeakMap();
+				class User {
+				  constructor(name) { priv.set(this, { name }); }
+				  get name() { return priv.get(this).name; }
+				}
+		3. Caching results per object without keeping the object alive.
+
+	Same idea with Map instead of WeakMap = memory leak, because Map holds a strong reference forever.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Quick summary
+	Map		: key -> value, any key type, ordered, iterable
+	Set		: unique values, fast has()
+	WeakMap	: object keys only, GC friendly, not iterable
+	WeakSet	: object values only, GC friendly, not iterable

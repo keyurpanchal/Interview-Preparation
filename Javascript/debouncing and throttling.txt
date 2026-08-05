@@ -1,0 +1,130 @@
+Debouncing and Throttling
+
+- Both limit how often a function runs. Used for events that fire very fast:
+  scroll, resize, mousemove, keyup in a search box, window drag.
+- Without them you can fire hundreds of handlers per second and freeze the UI.
+
+-----------------------------------------------------------------------------------------------------------------
+
+DEBOUNCE
+- "Wait until the user STOPS doing it, then run once."
+- Every new call RESETS the timer. The function runs only after a quiet period.
+
+	Ex: function debounce(fn, delay = 300) {
+		  let timer;
+		  return function (...args) {
+			clearTimeout(timer);
+			timer = setTimeout(() => fn.apply(this, args), delay);
+		  };
+		}
+
+		const search = debounce((e) => callApi(e.target.value), 500);
+		input.addEventListener('keyup', search);
+
+	Timeline (delay 500ms), user types k-e-y-u-r quickly then stops:
+		k e y u r ..... 500ms silence ..... FIRE ONCE with "keyur"
+
+	Use for:
+		- Search / autocomplete input (do not call the API on every keystroke)
+		- Form validation while typing
+		- Auto-save a draft
+		- window resize where you only care about the final size
+
+	Variant - leading edge (fire immediately, then ignore until quiet):
+		Ex: function debounce(fn, delay = 300, immediate = false) {
+			  let timer;
+			  return function (...args) {
+				const callNow = immediate && !timer;
+				clearTimeout(timer);
+				timer = setTimeout(() => { timer = null; if (!immediate) fn.apply(this, args); }, delay);
+				if (callNow) fn.apply(this, args);
+			  };
+			}
+
+	Add a cancel method (useful in cleanup / ngOnDestroy):
+		Ex: search.cancel = () => clearTimeout(timer);
+
+-----------------------------------------------------------------------------------------------------------------
+
+THROTTLE
+- "Run at most once every X ms, no matter how many times it is called."
+- Guarantees a steady rate. The function DOES run during continuous activity.
+
+	Ex: function throttle(fn, limit = 300) {
+		  let waiting = false;
+		  return function (...args) {
+			if (waiting) return;
+			fn.apply(this, args);
+			waiting = true;
+			setTimeout(() => { waiting = false; }, limit);
+		  };
+		}
+
+		window.addEventListener('scroll', throttle(() => updateHeader(), 200));
+
+	Timeline (limit 200ms), scroll fires continuously for 1s:
+		FIRE ... 200ms ... FIRE ... 200ms ... FIRE ... 200ms ... FIRE ... 200ms ... FIRE
+		(5 calls instead of maybe 100)
+
+	Use for:
+		- Scroll position / sticky header / infinite scroll check
+		- mousemove tracking, drag and drop
+		- Rate limiting button clicks
+		- Progress updates during upload
+
+	Timestamp version (fires on the leading edge, no timer object):
+		Ex: function throttle(fn, limit = 300) {
+			  let last = 0;
+			  return function (...args) {
+				const now = Date.now();
+				if (now - last < limit) return;
+				last = now;
+				fn.apply(this, args);
+			  };
+			}
+
+-----------------------------------------------------------------------------------------------------------------
+
+Difference (this is the actual interview question)
+
+	                  | Debounce                          | Throttle
+	------------------|-----------------------------------|-----------------------------------
+	Idea              | wait for silence, then run        | run at a fixed maximum rate
+	During continuous | runs ZERO times                   | runs regularly
+	  activity        |                                   |
+	Runs              | once, at the end                  | every X ms
+	Timer on new call | RESET                             | ignored until the window passes
+	Best for          | search input, autosave, resize    | scroll, mousemove, drag
+	Risk              | may never fire if user never stops| still fires a lot on long activity
+
+	One line: debounce cares about the LAST event, throttle cares about the FIRST event in each window.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Notes
+
+	- Both are built with closures: the timer variable lives in the outer scope and survives between calls.
+	  (see closures.txt) They are also higher-order functions - they take a fn and return a fn.
+	  (see higher order functions.txt)
+	- Use a normal function (not arrow) in the returned wrapper so this/apply forwards correctly.
+	  (see function types.txt)
+	- Create the debounced function ONCE. Creating it inside a render/handler makes a new timer each
+	  time and it never debounces:
+		BAD : el.addEventListener('keyup', (e) => debounce(fn, 300)(e));
+		GOOD: const handler = debounce(fn, 300); el.addEventListener('keyup', handler);
+
+	- In Angular / RxJS the same thing already exists as operators:
+		debounceTime(500)		-> debounce
+		throttleTime(200)		-> throttle
+	  Usually combined with distinctUntilChanged() and switchMap() for a search box.
+	  (see Angular/rxjs and its operators.txt)
+
+	- For scroll-position work, IntersectionObserver is often better than a throttled scroll listener,
+	  because the browser does the work off the main thread.
+	- For animation, requestAnimationFrame is better than throttle - it syncs to the screen refresh.
+		Ex: let ticking = false;
+			window.addEventListener('scroll', () => {
+			  if (ticking) return;
+			  ticking = true;
+			  requestAnimationFrame(() => { update(); ticking = false; });
+			});

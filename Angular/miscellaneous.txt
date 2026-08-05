@@ -1,0 +1,177 @@
+Miscellaneous
+
+-----------------------------------------------------------------------------------------------------------------
+
+Creating a Global Error Handler
+
+	- Angular has a default ErrorHandler that just does console.error.
+	- We can replace it with our own class to log errors to a server, show a toast, etc.
+	- Note: ErrorHandler catches errors thrown inside Angular (templates, lifecycle hooks, subscribe callbacks).
+	  HTTP errors are better handled in an interceptor. (see http client.txt)
+
+	Ex: @Injectable()
+		export class GlobalErrorHandler implements ErrorHandler {
+		  private logger = inject(LoggerService);
+		  private zone = inject(NgZone);
+
+		  handleError(error: any): void {
+			// run inside zone if you want to update UI / navigate
+			this.zone.run(() => {
+			  this.logger.logToServer(error?.message ?? error);
+			});
+			console.error(error);
+		  }
+		}
+
+	Usage: in app.config.ts
+		providers: [
+		  { provide: ErrorHandler, useClass: GlobalErrorHandler }
+		]
+
+	HTTP error side (interceptor):
+		Ex: export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+			  const toast = inject(ToastService);
+			  return next(req).pipe(
+				catchError((err: HttpErrorResponse) => {
+				  toast.show(err.status === 401 ? 'Session expired' : 'Something went wrong');
+				  return throwError(() => err);
+				})
+			  );
+			};
+
+-----------------------------------------------------------------------------------------------------------------
+
+Component Architecture: Smart vs Dumb Components
+
+	- Also called Container vs Presentational components.
+
+	Smart / Container component:
+		- Knows about the outside world. Injects services, calls APIs, holds state, handles routing.
+		- Usually a routed component.
+		- Passes data down and reacts to events coming up.
+		Ex: export class UserListPageComponent {
+			  private userService = inject(UserService);
+			  users = toSignal(this.userService.getUsers(), { initialValue: [] });
+
+			  onDelete(id: number) { this.userService.delete(id).subscribe(); }
+			}
+			// template
+			<app-user-card
+			  *ngFor="let u of users()"
+			  [user]="u"
+			  (delete)="onDelete($event)" />
+
+	Dumb / Presentational component:
+		- Only gets data through @Input / input() and sends events through @Output / output().
+		- No services, no HTTP, no router. Just renders and emits.
+		- Easy to test, easy to reuse, works well with ChangeDetectionStrategy.OnPush.
+		Ex: @Component({
+			  selector: 'app-user-card',
+			  changeDetection: ChangeDetectionStrategy.OnPush,
+			  ...
+			})
+			export class UserCardComponent {
+			  user = input.required<User>();
+			  delete = output<number>();
+			}
+
+	Why:
+		- Separation of concerns, business logic sits in few places.
+		- Dumb components can be reused anywhere and are simple to unit test.
+		- OnPush works reliably because inputs are the only source of change.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Migrating / Upgrading From Older Versions
+
+	- Always upgrade ONE major version at a time. Do not jump 15 -> 19.
+	- Official guide: https://angular.dev/update-guide  (select from and to version)
+
+	Steps:
+		1. Commit / clean working tree first.
+		2. Check Node and TypeScript version required by the target Angular version.
+		3. Run the update, CLI first then core:
+			Ex: ng update @angular/cli@18 @angular/core@18
+		4. Update the other Angular packages (material, cdk) in the same command:
+			Ex: ng update @angular/cli@18 @angular/core@18 @angular/material@18
+		5. Run the app, run tests, fix deprecation warnings.
+		6. Repeat for the next major version.
+
+	Useful automatic migrations (schematics):
+		Ex: ng generate @angular/core:standalone			// NgModules -> standalone
+			ng generate @angular/core:control-flow		// *ngIf/*ngFor -> @if/@for
+			ng generate @angular/core:signal-inputs		// @Input() -> input()
+			ng generate @angular/core:inject			// constructor DI -> inject()
+
+	Common breaking points:
+		- Ivy / ViewEngine libraries not compatible.
+		- Third party libs lagging behind, check their peer dependencies before upgrading.
+		- RxJS 6 -> 7 changes (toPromise deprecated, use firstValueFrom / lastValueFrom).
+		- CanLoad deprecated in favour of CanMatch. (see routing.txt)
+
+-----------------------------------------------------------------------------------------------------------------
+
+Multiple Apps in One Angular Project (Monorepo / Workspace)
+
+	- One workspace can hold many applications and libraries. They share node_modules and tsconfig.
+	- Each app/lib gets its own entry under "projects" in angular.json.
+
+	Ex: ng new my-workspace --create-application=false
+		cd my-workspace
+		ng generate application admin
+		ng generate application customer
+		ng generate library shared-ui
+
+	Run / build a specific project:
+		Ex: ng serve admin
+			ng build customer --configuration production
+			ng test shared-ui
+
+	Sharing code:
+		- Put common components/services in a library, not in one of the apps.
+		- The library gets a path alias in tsconfig.json:
+			Ex: "paths": { "shared-ui": ["projects/shared-ui/src/public-api.ts"] }
+			Usage: import { ButtonComponent } from 'shared-ui';
+
+	Notes:
+		- Default project is set with "defaultProject" (older CLI) or by passing the name explicitly.
+		- For bigger setups people use Nx, which adds caching and dependency graph on top of the same idea.
+
+-----------------------------------------------------------------------------------------------------------------
+
+angular.json (workspace configuration)
+
+	- Defines how the CLI builds, serves and tests every project in the workspace.
+
+	Structure:
+		version			: schema version of the file
+		newProjectRoot	: where new projects are created (default "projects")
+		projects		: one entry per application / library
+			root, sourceRoot, prefix	: paths and component selector prefix (app-)
+			architect / targets			: build, serve, test, lint, extract-i18n, server, prerender
+
+	Important build options:
+		outputPath			: where the build goes (dist/...)
+		index / browser		: entry html and entry ts (main.ts)
+		polyfills			: e.g. zone.js  (removed when going zoneless)
+		assets				: files copied as-is (images, favicon, manifest)
+		styles / scripts	: global css and js added to the bundle
+		tsConfig			: which tsconfig to use
+		optimization		: minify + tree shaking, true in production
+		sourceMap			: generate .map files, false in production
+		outputHashing		: adds hash to file names for cache busting (all/none)
+		budgets				: fail/warn the build when bundle size crosses a limit
+			Ex: { "type": "initial", "maximumWarning": "500kB", "maximumError": "1MB" }
+		fileReplacements	: swap environment.ts with environment.prod.ts per configuration
+			Ex: [{ "replace": "src/environments/environment.ts",
+				   "with": "src/environments/environment.prod.ts" }]
+
+	Configurations:
+		- "production" and "development" are the default ones. You can add "staging", "qa" etc.
+		Ex: ng build --configuration staging
+
+	Common interview questions:
+		- How do you add a global stylesheet / third party js?		-> styles[] and scripts[] arrays.
+		- How do you point to a different API url per environment?	-> fileReplacements + environment files.
+		- How do you fail a build when the bundle gets too big?		-> budgets.
+		- Where do you change the component selector prefix?		-> "prefix" of the project.

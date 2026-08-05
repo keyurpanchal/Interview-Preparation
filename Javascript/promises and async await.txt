@@ -1,0 +1,176 @@
+Promises and async / await
+
+What is a Promise
+- A Promise is an object representing a value that may be available now, later, or never.
+- It was created to solve callback hell. (see callback.txt)
+
+States (a promise can change state only ONCE, then it is settled forever):
+	pending		: initial state, still running
+	fulfilled	: finished successfully -> has a value
+	rejected	: failed -> has a reason (usually an Error)
+
+	"settled" = fulfilled or rejected.
+
+	Ex: const p = new Promise((resolve, reject) => {
+		  setTimeout(() => resolve('done'), 1000);
+		  // reject(new Error('failed'));
+		});
+
+-----------------------------------------------------------------------------------------------------------------
+
+Consuming a promise
+
+	p.then(onFulfilled, onRejected)
+	p.catch(onRejected)					// same as .then(null, fn)
+	p.finally(fn)						// runs either way, receives NO argument, passes the value through
+
+	Ex: fetch('/api/user')
+		  .then(res => res.json())
+		  .then(user => console.log(user))
+		  .catch(err => console.error(err))
+		  .finally(() => hideLoader());
+
+Chaining
+- .then ALWAYS returns a new promise, that is why chaining works.
+- Whatever you return inside .then becomes the value of the next .then.
+- If you return a promise, the chain waits for it.
+	Ex: getUser()
+		  .then(user => getOrders(user.id))		// returns a promise -> chain waits
+		  .then(orders => orders.length)		// returns a number   -> wrapped in a promise
+		  .then(count => console.log(count));
+
+- Forgetting to RETURN inside .then is the classic bug:
+	Ex: .then(user => { getOrders(user.id); })	// next .then gets undefined, does not wait
+
+Error handling
+- One .catch at the end catches errors from every step above it.
+- A throw inside .then jumps to the nearest .catch below.
+- After a .catch the chain RECOVERS and continues as fulfilled.
+	Ex: p.catch(() => 'fallback').then(v => console.log(v));	// logs "fallback"
+
+Static helpers
+	Promise.resolve(v)		// already fulfilled promise
+	Promise.reject(e)		// already rejected promise
+
+-----------------------------------------------------------------------------------------------------------------
+
+Combinators (know all four, very common question)
+
+	Promise.all([p1, p2, p3])
+		- Waits for ALL. Resolves with an array of values in the SAME order as input.
+		- FAILS FAST: if any one rejects, the whole thing rejects immediately with that error.
+		- Use when you need everything and one failure makes the result useless.
+		Ex: const [user, posts] = await Promise.all([getUser(), getPosts()]);
+
+	Promise.allSettled([p1, p2])
+		- Waits for ALL, NEVER rejects.
+		- Resolves with [{ status: 'fulfilled', value }, { status: 'rejected', reason }]
+		- Use when you want every result regardless of individual failures.
+		Ex: const results = await Promise.allSettled(urls.map(u => fetch(u)));
+			const ok = results.filter(r => r.status === 'fulfilled');
+
+	Promise.race([p1, p2])
+		- Settles as soon as the FIRST one settles, fulfilled OR rejected.
+		- Classic use: timeout.
+		Ex: const timeout = (ms) => new Promise((_, rej) =>
+			  setTimeout(() => rej(new Error('timeout')), ms));
+			await Promise.race([fetch(url), timeout(5000)]);
+
+	Promise.any([p1, p2])
+		- Resolves with the first FULFILLED one, ignores rejections.
+		- Rejects only if ALL reject, with an AggregateError (err.errors is the array).
+		- Use for "try these mirrors, give me whichever answers first".
+
+	Quick table:
+		all			-> all succeed, else fail fast
+		allSettled	-> never fails, gives status for each
+		race		-> first to settle, success or failure
+		any			-> first to succeed, fails only if all fail
+
+-----------------------------------------------------------------------------------------------------------------
+
+async / await
+
+- Syntax sugar over promises. Makes async code read like sync code.
+- An async function ALWAYS returns a promise, even if you return a plain value.
+	Ex: async function f() { return 1; }
+		f().then(v => console.log(v));		// 1
+
+- await pauses the async function until the promise settles, then gives the VALUE (not the promise).
+- await only works inside async functions, plus top level of ES modules (top-level await).
+
+	Ex: async function loadUser(id) {
+		  try {
+			const res = await fetch(`/api/user/${id}`);
+			if (!res.ok) throw new Error(res.status);	// fetch does NOT reject on 404/500
+			const user = await res.json();
+			return user;
+		  } catch (err) {
+			console.error(err);
+			throw err;								// re-throw so the caller knows
+		  } finally {
+			hideLoader();
+		  }
+		}
+
+Error handling
+	- try/catch replaces .catch
+	- An unawaited promise that rejects becomes an unhandled rejection warning.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Sequential vs Parallel  (the single most common async mistake)
+
+	SLOW - runs one after another, total = 3s
+		const a = await taskA();		// 1s
+		const b = await taskB();		// 1s
+		const c = await taskC();		// 1s
+
+	FAST - all start together, total = 1s
+		const [a, b, c] = await Promise.all([taskA(), taskB(), taskC()]);
+
+	Also fast - start first, await later
+		const pa = taskA(), pb = taskB();	// both already running
+		const a = await pa, b = await pb;
+
+	await inside a loop is sequential:
+		for (const id of ids) { await save(id); }				// one by one, sometimes you WANT this
+		await Promise.all(ids.map(id => save(id)));				// all at once
+
+	Note: forEach does NOT wait for async callbacks. Use for...of or map + Promise.all.
+		ids.forEach(async id => { await save(id); });			// finishes immediately, bug
+
+-----------------------------------------------------------------------------------------------------------------
+
+Promises and the event loop
+
+- Promise callbacks (.then, await continuation) go to the MICROTASK queue.
+- setTimeout goes to the MACROTASK queue.
+- Microtasks always run before the next macrotask. (see js under the hood.txt)
+
+	Ex: console.log('1');
+		setTimeout(() => console.log('2'), 0);
+		Promise.resolve().then(() => console.log('3'));
+		console.log('4');
+
+		Output: 1, 4, 3, 2
+
+	Reason: 1 and 4 are sync. Then the call stack empties, microtask (3) runs, then macrotask (2).
+
+-----------------------------------------------------------------------------------------------------------------
+
+Other points
+
+	Promisify a callback API
+		Ex: const wait = (ms) => new Promise(res => setTimeout(res, ms));
+			await wait(1000);
+
+	Cancellation
+		- Promises cannot be cancelled. Use AbortController for fetch.
+		Ex: const ctrl = new AbortController();
+			fetch(url, { signal: ctrl.signal });
+			ctrl.abort();
+
+	Promise is eager
+		- The executor runs IMMEDIATELY when you create the promise, not when you call .then.
+		- This is the difference from an Observable, which is lazy. (Angular / RxJS question)

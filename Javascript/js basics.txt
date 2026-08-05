@@ -1,0 +1,49 @@
+What is Javascript ?
+- Javascript is a scripting language for the web. scripting language talks with other programming language.
+- It is single threaded, dynamically typed and just-in-time compiled. (see js compiled or interpreted.txt)
+- ECMAScript is the specification, JavaScript is the implementation of it.
+
+-----------------------------------------------------------------------------------------------------------------
+
+What is different between statments and expressions ?
+- Expressions are lines of code that returns the value or becomes value. Ex: x + 1 is expression.
+- While containing function method with some side effect we call them statments, statments can be collection of multiple expressions.
+
+- Simple rule: if you can put it on the right side of "const x = ...", it is an expression.
+	Ex: Expressions	: 5, x + 1, fn(), a ? b : c, function(){}, (() => 1)()
+		Statements	: if (...) {}, for (...) {}, while (...) {}, return x, let x = 5
+
+- Function DECLARATION is a statement, function EXPRESSION is an expression. That is why only declarations are fully hoisted.
+	Ex: function a() {}			// declaration  -> hoisted with body
+		const b = function() {};	// expression   -> only "b" is hoisted, stays in TDZ
+
+-----------------------------------------------------------------------------------------------------------------
+
+Explain data types in javascript
+- Have two types primitive and non-primitive types. Non-primitive also known as reference types.
+- Primitive types : number, string, boolean, null, undefined
+	(modern JS also adds: symbol and bigint)
+- Non primitive types : Objects (Array and functions are objects in javascript)
+
+what is reference types
+- Reference types are non primitive types like array and objects.
+
+Primitive vs Reference:
+- Primitives are stored by VALUE, copying gives an independent copy.
+	Ex: let a = 1; let b = a; b = 2; console.log(a); // 1
+- References are stored by REFERENCE, copying copies the pointer, both point to same object.
+	Ex: let o1 = { n: 1 }; let o2 = o1; o2.n = 2; console.log(o1.n); // 2
+- This is the whole reason shallow copy vs deep copy exists. (see shallow-deep copy.txt)
+- Primitives live on the stack, objects live on the heap. (see js under the hood.txt)
+
+typeof results (worth remembering):
+	typeof 1			// "number"
+	typeof "a"			// "string"
+	typeof true			// "boolean"
+	typeof undefined	// "undefined"
+	typeof Symbol()		// "symbol"
+	typeof 10n			// "bigint"
+	typeof {}			// "object"
+	typeof []			// "object"		<- use Array.isArray([]) instead
+	typeof function(){}	// "function"
+	typeof null			// "object"		<- famous historical bug in JS

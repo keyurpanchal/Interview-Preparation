@@ -1,0 +1,140 @@
+Memory Management and Garbage Collection
+
+- In JS memory is allocated automatically when you create values, and freed automatically by the
+  Garbage Collector (GC). You never call free().
+- Lifecycle: allocate -> use -> release.
+
+Where things are stored (see js under the hood.txt)
+	Stack	: primitives and REFERENCES. Fixed size, fast, freed when the function returns.
+	Heap	: objects, arrays, functions. Dynamic size, managed by the GC.
+
+	Ex: let a = 10;					// value 10 on the stack
+		let o = { n: 1 };			// object on the heap, the pointer is on the stack
+		let o2 = o;					// pointer copied, SAME heap object
+
+-----------------------------------------------------------------------------------------------------------------
+
+How the GC decides what to free: REACHABILITY
+
+- The GC does not count usage. It asks: "can this value still be reached?"
+- It starts from the ROOTS and follows every reference:
+	Roots = global object (window), the current call stack, and closures currently alive.
+- Anything not reachable from a root is garbage.
+
+	Ex: let user = { name: 'Keyur' };
+		user = null;			// object is now unreachable -> can be collected
+
+	Ex: let a = { name: 'A' };
+		let b = a;
+		a = null;				// still reachable through b -> NOT collected
+
+-----------------------------------------------------------------------------------------------------------------
+
+Algorithms
+
+	Reference counting (OLD, not used by modern engines)
+		- Count how many references point to a value, free it at 0.
+		- FAILS on circular references:
+			Ex: function f() {
+				  const a = {}, b = {};
+				  a.b = b; b.a = a;		// each has count 1 forever
+				}
+				f();					// leaked under reference counting
+		- Old IE leaked exactly like this.
+
+	Mark and Sweep (what V8 actually uses)
+		1. Mark  : start at the roots, mark everything reachable.
+		2. Sweep : free everything not marked.
+		- Circular references are handled fine, because the cycle is simply not reachable from a root.
+
+	V8 optimisations worth naming:
+		- Generational GC: memory is split into Young (new space) and Old space.
+		  Most objects die young, so the young space is collected very often and very cheaply (Scavenger).
+		  Survivors get promoted to old space, collected less often (Mark-Compact).
+		- Incremental / concurrent marking so the GC pause does not freeze the UI.
+		- "Stop the world": the GC pauses JS execution while it runs. Short pauses are fine,
+		  long ones show up as jank/dropped frames.
+
+-----------------------------------------------------------------------------------------------------------------
+
+MEMORY LEAKS - the part interviews actually care about
+
+A leak = memory that is no longer needed but is still reachable, so the GC cannot free it.
+
+1. Accidental globals
+	Ex: function f() { count = 1; }		// no let/const -> becomes window.count, never freed
+	Fix: always declare, use 'use strict' or modules (strict by default).
+
+2. Forgotten timers and intervals
+	Ex: setInterval(() => { doWork(data); }, 1000);
+		// keeps "data" alive forever, even after the component is gone
+	Fix: const id = setInterval(...); clearInterval(id);   in cleanup/ngOnDestroy.
+
+3. Detached DOM nodes
+	- You remove an element from the page but still hold a JS reference to it.
+	Ex: const cache = [];
+		const el = document.getElementById('box');
+		cache.push(el);
+		el.remove();		// removed from the DOM, but cache still points to it -> leak
+	Fix: clear the reference, or store it in a WeakMap/WeakSet.
+
+4. Event listeners not removed
+	Ex: window.addEventListener('resize', this.onResize);
+		// the handler closure keeps the whole component alive
+	Fix: removeEventListener with the SAME function reference, or use { signal } with AbortController:
+		Ex: const ctrl = new AbortController();
+			window.addEventListener('resize', fn, { signal: ctrl.signal });
+			ctrl.abort();			// removes it
+
+5. Closures holding more than needed
+	- A closure keeps its WHOLE outer scope alive, not just the variable it uses.
+	Ex: function outer() {
+		  const huge = new Array(1e6).fill('x');
+		  return () => 'hi';			// does not use huge, but may still retain the scope
+		}
+	Fix: null out big variables, or keep closures small and focused. (see closures.txt)
+
+6. Unsubscribed observables / streams  (very common in Angular)
+	Fix: takeUntil + a destroy Subject, the async pipe, or takeUntilDestroyed().
+
+7. Caches that only grow
+	Ex: const cache = new Map();		// nothing is ever deleted
+	Fix: size limit + eviction (LRU), or WeakMap if the key is an object.
+
+-----------------------------------------------------------------------------------------------------------------
+
+WeakMap / WeakSet / WeakRef
+
+- Weak references do NOT stop the GC. This is the language-level tool for avoiding leaks.
+	Ex: const meta = new WeakMap();
+		meta.set(domNode, { clicks: 0 });
+		// when domNode is removed and unreferenced, the entry disappears automatically
+  (see maps and sets.txt)
+
+- WeakRef + FinalizationRegistry exist for advanced cases, but are rarely needed and
+  the callback timing is not guaranteed. Mentioning that you know they exist is enough.
+
+-----------------------------------------------------------------------------------------------------------------
+
+How to actually find a leak (Chrome DevTools > Memory tab)
+
+	1. Heap snapshot
+		- Take a snapshot, do the suspicious action (open + close a modal 10 times), take another,
+		  then compare with "Objects allocated between snapshot 1 and 2".
+		- If the count of your objects keeps growing and never drops, that is your leak.
+		- Filter by "Detached" to find detached DOM nodes directly.
+	2. Allocation instrumentation on timeline
+		- Shows blue bars for allocations. Bars that stay blue were never freed.
+	3. Performance monitor
+		- Watch JS heap size and DOM node count live. A saw-tooth that trends UPWARD = leak.
+		  A saw-tooth that returns to the same baseline = healthy.
+	4. Force GC with the bin icon before measuring, otherwise you measure uncollected garbage.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Interview one-liners
+	- JS memory is managed automatically by a mark-and-sweep GC based on REACHABILITY, not reference counts.
+	- Reference counting fails on cycles, mark-and-sweep does not.
+	- A leak is memory that is unneeded but still reachable.
+	- Top causes: globals, timers, listeners, detached DOM, unbounded caches, unsubscribed streams.
+	- WeakMap lets you attach data to an object without keeping that object alive.

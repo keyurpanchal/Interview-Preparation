@@ -1,0 +1,64 @@
+Bitwise Operator
+
+Why does javascript use '&&' and '||' for logical operations ?
+	Because & and | is reserved for Bitwise operators.
+	Bitwise Operators which works with bits like in 0001 and so on.
+
+Where we can use Bitwise Operators?
+	When we have multiple true false and its use cases. The bitwise operators gave flexibility as in single string like 1010 gives two values and so on so you just have to check single bits.
+
+-----------------------------------------------------------------------------------------------------------------
+
+How they work
+- JS numbers are 64-bit floats, but bitwise operators convert them to 32-bit SIGNED integers, do the operation, then convert back.
+- That is why bitwise operations break above 2^31 - 1 (2147483647).
+
+	List:
+		&	AND			both bits 1		->	5 & 3	= 1		(101 & 011 = 001)
+		|	OR			any bit 1		->	5 | 3	= 7		(101 | 011 = 111)
+		^	XOR			bits differ		->	5 ^ 3	= 6		(101 ^ 011 = 110)
+		~	NOT			flips all bits	->	~5		= -6	(~n === -(n+1))
+		<<	left shift					->	5 << 1	= 10	(multiply by 2)
+		>>	right shift (sign keeping)	->	5 >> 1	= 2		(divide by 2, floored)
+		>>>	right shift (zero fill)		->	-5 >>> 0 = 4294967291
+
+-----------------------------------------------------------------------------------------------------------------
+
+Real use case: flags / permissions
+- Instead of 4 booleans you keep one number. Each bit is one permission.
+
+	Ex: const READ	= 1;	// 0001
+		const WRITE	= 2;	// 0010
+		const DELETE	= 4;	// 0100
+		const ADMIN	= 8;	// 1000
+
+		let userPerms = READ | WRITE;			// 0011 = 3
+
+		// check
+		if (userPerms & WRITE) { ... }			// truthy -> has write
+
+		// add
+		userPerms |= DELETE;					// 0111 = 7
+
+		// remove
+		userPerms &= ~WRITE;					// 0101 = 5
+
+		// toggle
+		userPerms ^= ADMIN;
+
+- One number in the DB instead of a table of booleans, and checking is a single CPU instruction.
+
+-----------------------------------------------------------------------------------------------------------------
+
+Common tricks you may see in code
+
+	n | 0			// truncate to integer	  ->  7.9 | 0	=> 7   (not floor for negatives: -7.9|0 => -7)
+	~~n				// same truncate trick	  ->  ~~7.9		=> 7
+	n % 2 === 0		// even, readable way
+	(n & 1) === 0	// even, bitwise way (last bit 0 = even)
+	a ^ b ^ b		// === a   (XOR is its own inverse, used in swap puzzles)
+
+	Old trick (do NOT write it today, use includes()):
+		if (~arr.indexOf(x)) { ... }	// indexOf -1 -> ~-1 is 0 (falsy), anything else is truthy
+
+Note: these micro-optimisations are not faster in modern engines and hurt readability. Know them for reading old code and for interviews, use Math.trunc / Math.floor / includes() in real code.
